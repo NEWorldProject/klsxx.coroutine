@@ -20,36 +20,20 @@
 * SOFTWARE.
 */
 
-#pragma once
+#include <string>
+#include <gtest/gtest.h>
+#include "kls/coroutine/Timed.h"
+#include "kls/coroutine/Blocking.h"
 
-#include "FlexAsync.h"
-#include "ValueAsync.h"
-
-namespace kls::coroutine {
-    class SwitchTo {
-    public:
-        explicit SwitchTo(IExecutor* next) noexcept : mNext(next) {}
-
-        [[nodiscard]] constexpr bool await_ready() const noexcept { return false; }
-
-        void await_suspend(std::coroutine_handle<> handle) { mNext->Enqueue(handle); }
-
-        constexpr void await_resume() noexcept {}
-    private:
-        IExecutor* mNext;
-    };
-
-    struct Redispatch {
-        [[nodiscard]] constexpr bool await_ready() const noexcept { return false; }
-
-        void await_suspend(std::coroutine_handle<> handle) { CurrentExecutor()->Enqueue(handle); }
-
-        constexpr void await_resume() noexcept {}
-    };
-
-    template <class ...U>
-    ValueAsync<void> Awaits(U&&... c) { (..., co_await std::move(c)); }
-
-    template <class Container>
-    ValueAsync<void> AwaitAll(Container c) { for (auto&& x : c) co_await std::move(x); }
+TEST(kls_coroutine, DelaySuccess) {
+    using namespace std::chrono;
+    using namespace kls::coroutine;
+    auto result = run_blocking([&]() -> ValueAsync<bool> {
+        const auto start = steady_clock::now();
+        const auto expected_end = start + milliseconds(10);
+        co_await delay_until(expected_end);
+        const auto actual_end = steady_clock::now();
+        co_return expected_end < actual_end;
+    });
+    ASSERT_TRUE(result);
 }

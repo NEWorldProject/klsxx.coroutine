@@ -24,7 +24,7 @@
 
 #include <atomic>
 #include <memory>
-#include "CoroDetail.h"
+#include "Await.h"
 #include "kls/essential/Final.h"
 
 namespace kls::coroutine::detail::value_async {
@@ -106,7 +106,7 @@ namespace kls::coroutine {
         using Media = detail::value_async::ValueContinuableValueMedia<T>;
         using PromiseMedia = detail::value_async::ValuePromiseValueMedia<T>;
 
-        class ValueAwaitCore : detail::AwaitCore {
+        class ValueAwaitCore : AwaitCore {
         public:
             explicit ValueAwaitCore(Media* media) : mMedia(media) {}
 
@@ -125,7 +125,7 @@ namespace kls::coroutine {
             Media* mMedia;
         };
     public:
-        using Await = detail::Await<ValueAwaitCore>;
+        using MyAwait = Await<ValueAwaitCore>;
 
         struct promise_type : public PromiseMedia {
             ValueAsync get_return_object() { return ValueAsync(this); }
@@ -151,9 +151,9 @@ namespace kls::coroutine {
 
         ~ValueAsync() noexcept { if (mMedia) { mMedia->ClientRelease(); } }
 
-        auto operator co_await()&& { return Await(std::exchange(mMedia, nullptr)); }
+        auto operator co_await()&& { return MyAwait(std::exchange(mMedia, nullptr)); }
 
-        auto Configure(IExecutor* next)&& { return Await(std::exchange(mMedia, nullptr), next); }
+        auto Configure(IExecutor* next)&& { return MyAwait(std::exchange(mMedia, nullptr), next); }
 
     private:
         Media* mMedia{ nullptr };

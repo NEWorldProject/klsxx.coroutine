@@ -22,10 +22,12 @@
 
 #pragma once
 
+#include <variant>
+#include "Traits.h"
 #include "Executor.h"
-#include "kls/coroutine/ValueAsync.h"
+#include "ValueAsync.h"
 
-namespace kls::coroutine {
+namespace kls::coroutine::detail {
 	class Blocking {
 	public:
 		// creates the executor queue, mark the current thread as the executor
@@ -36,28 +38,75 @@ namespace kls::coroutine {
 		Blocking& operator=(Blocking&&) = delete;
 		Blocking& operator=(const Blocking&) = delete;
 
-		// destruct everthing
 		~Blocking();
 
-		// drain the queue until the awaiting operation has completed.
-		// any item submitted to the executer after the completion of the awaited
-		// item is invalid and will result in undefined behaviour
-		template <class T>
-		void Await(T&& awaitable) {
-			CoAwaitToStop(std::forward<T>(awaitable)); // Call a coroutine to await the awaitable which calls Stop() afterwards
-			Start();
-		}
-	private:
+    protected:
 		void Start();
 		void Stop();
-
-		template <class T>
-		ValueAsync<void> CoAwaitToStop(T&& awaitable) {
-			co_await std::forward<T>(awaitable);
-			Stop();
-		}
+    private:
 
 		class Executor;
 		Executor* mTheExec;
 	};
+}
+
+namespace kls::coroutine {
+    template <class Fn>
+    auto run_blocking(Fn fn) {
+        using return_type = awaitable_result_t<std::invoke_result_t<Fn>>;
+        if constexpr(!std::is_same_v<void, return_type>) {
+            class Blocking : public detail::Blocking {
+            public:
+                // drain the queue until the awaiting operation has completed.
+                // any item submitted to the executor after the completion of the awaited
+                // item is invalid and will result in undefined behaviour
+                return_type Await(const Fn &fn) {
+                    CoAwaitToStop(fn); // Call a coroutine to await the awaitable which calls Stop() afterwards
+                    Start();
+                    if(auto index = m_result.index(); index == 1)
+                        return std::move(*std::get_if<return_type>(&m_result));
+                    else
+                        std::rethrow_exception(std::move(*std::get_if<std::exception_ptr>(&m_result)));
+                }
+
+            private:
+                std::variant<std::monostate, return_type, std::exception_ptr> m_result{};
+
+                ValueAsync<void> CoAwaitToStop(const Fn &fn) noexcept {
+                    try {
+                        m_result = co_await fn();
+                    }
+                    catch (...) {
+                        m_result = std::current_exception();
+                    }
+                    Stop();
+                }
+            };
+            return Blocking().Await(fn);
+        }
+        else {
+            class Blocking : public detail::Blocking {
+            public:
+                return_type Await(const Fn &fn) {
+                    CoAwaitToStop(fn);
+                    Start();
+                    if (m_result) std::rethrow_exception(std::move(*m_result));
+                }
+
+            private:
+                std::optional<std::exception_ptr> m_result = std::nullopt;
+
+                ValueAsync<void> CoAwaitToStop(const Fn &fn) noexcept {
+                    try {
+                        co_await fn();
+                    }
+                    catch (...) {
+                        m_result = std::current_exception();
+                    }
+                    Stop();
+                }
+            };
+            return Blocking().Await(fn);
+        }
+    }
 }

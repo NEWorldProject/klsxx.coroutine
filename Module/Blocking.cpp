@@ -25,7 +25,7 @@
 #include "kls/thread/Semaphore.h"
 #include "kls/coroutine/Blocking.h"
 
-namespace kls::coroutine {
+namespace kls::coroutine::detail {
     class Blocking::Executor final : public IExecutor {
     public:
         Executor() :

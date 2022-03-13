@@ -22,34 +22,18 @@
 
 #pragma once
 
-#include "FlexAsync.h"
-#include "ValueAsync.h"
+#include <coroutine>
+#include <type_traits>
 
 namespace kls::coroutine {
-    class SwitchTo {
-    public:
-        explicit SwitchTo(IExecutor* next) noexcept : mNext(next) {}
-
-        [[nodiscard]] constexpr bool await_ready() const noexcept { return false; }
-
-        void await_suspend(std::coroutine_handle<> handle) { mNext->Enqueue(handle); }
-
-        constexpr void await_resume() noexcept {}
-    private:
-        IExecutor* mNext;
+    template<class T>
+    constexpr bool has_co_await_operator_v = requires {
+        std::declval<T>().operator co_await();
     };
 
-    struct Redispatch {
-        [[nodiscard]] constexpr bool await_ready() const noexcept { return false; }
+    template<class T>
+    using get_awaiter_t = std::conditional_t<has_co_await_operator_v<T>, decltype(std::declval<T>().operator co_await()), T>;
 
-        void await_suspend(std::coroutine_handle<> handle) { CurrentExecutor()->Enqueue(handle); }
-
-        constexpr void await_resume() noexcept {}
-    };
-
-    template <class ...U>
-    ValueAsync<void> Awaits(U&&... c) { (..., co_await std::move(c)); }
-
-    template <class Container>
-    ValueAsync<void> AwaitAll(Container c) { for (auto&& x : c) co_await std::move(x); }
+    template<class T>
+    using awaitable_result_t = decltype(std::declval<get_awaiter_t<T>>().await_resume());
 }

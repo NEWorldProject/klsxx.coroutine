@@ -29,7 +29,7 @@
 #include "Executor.h"
 #include "kls/Object.h"
 
-namespace kls::coroutine::detail {
+namespace kls::coroutine {
     template<class T>
     class ValueStore;
 
@@ -96,7 +96,7 @@ namespace kls::coroutine::detail {
 
         explicit AwaitCore(IExecutor *next) noexcept: mExec(next) {}
 
-        // Await-related classes are not supposed to be copied nor moved
+        // Awaits-related classes are not supposed to be copied nor moved
         AwaitCore(AwaitCore &&) = delete;
 
         AwaitCore(const AwaitCore &) = delete;

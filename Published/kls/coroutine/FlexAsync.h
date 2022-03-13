@@ -24,7 +24,7 @@
 
 #include <mutex>
 #include <memory>
-#include "CoroDetail.h"
+#include "Await.h"
 #include "kls/thread/SpinLock.h"
 
 namespace kls::coroutine::detail::flex_async {
@@ -138,7 +138,7 @@ namespace kls::coroutine {
         };
 
     public:
-        using Await = detail::Await<FlexAwaitCore>;
+        using MyAwait = Await<FlexAwaitCore>;
 
         class promise_type : public PromiseMedia {
             static StateHandle make_state() noexcept {
@@ -155,13 +155,13 @@ namespace kls::coroutine {
             constexpr auto final_suspend() noexcept { return std::suspend_never{}; }
         };
 
-        auto operator co_await()&& { return Await(std::move(mState)); }
+        auto operator co_await()&& { return MyAwait(std::move(mState)); }
 
-        auto operator co_await() const& { return Await(mState); }
+        auto operator co_await() const& { return MyAwait(mState); }
 
-        auto Configure(IExecutor* next)&& { return Await(std::move(mState), next); }
+        auto Configure(IExecutor* next)&& { return MyAwait(std::move(mState), next); }
 
-        auto Configure(IExecutor* next) const& { return Await(mState, next); }
+        auto Configure(IExecutor* next) const& { return MyAwait(mState, next); }
 
     private:
         StateHandle mState;
