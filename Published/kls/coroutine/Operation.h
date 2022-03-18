@@ -22,24 +22,33 @@
 
 #pragma once
 
-#include "Executor.h"
-#include "kls/coroutine/ValueAsync.h"
+#include "Async.h"
 
 namespace kls::coroutine {
-    class ManualDrainExecutor {
+    class SwitchTo {
     public:
-        ManualDrainExecutor();
+        explicit SwitchTo(IExecutor* next) noexcept : mNext(next) {}
 
-        ManualDrainExecutor(ManualDrainExecutor&&) = delete;
-        ManualDrainExecutor(const ManualDrainExecutor&) = delete;
-        ManualDrainExecutor& operator=(ManualDrainExecutor&&) = delete;
-        ManualDrainExecutor& operator=(const ManualDrainExecutor&) = delete;
+        [[nodiscard]] constexpr bool await_ready() const noexcept { return false; }
 
-        ~ManualDrainExecutor();
+        void await_suspend(std::coroutine_handle<> handle) { mNext->enqueue(handle); }
 
-        void DrainOnce();
+        constexpr void await_resume() noexcept {}
     private:
-        class Executor;
-        Executor* mTheExec;
+        IExecutor* mNext;
     };
+
+    struct Redispatch {
+        [[nodiscard]] constexpr bool await_ready() const noexcept { return false; }
+
+        void await_suspend(std::coroutine_handle<> handle) { this_executor()->enqueue(handle); }
+
+        constexpr void await_resume() noexcept {}
+    };
+
+    template <class ...U>
+    ValueAsync<void> awaits(U&&... c) { (..., co_await std::move(c)); }
+
+    template <class Container>
+    ValueAsync<void> await_all(Container c) { for (auto&& x : c) co_await std::move(x); }
 }

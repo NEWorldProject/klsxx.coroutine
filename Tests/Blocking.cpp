@@ -25,37 +25,31 @@
 #include "kls/coroutine/Blocking.h"
 
 TEST(kls_coroutine, VoidBlockingSuccess) {
-    using namespace kls::essential;
     using namespace kls::coroutine;
     run_blocking([&]() -> ValueAsync<void> { co_return; });
 }
 
 TEST(kls_coroutine, VoidBlockingFailure) {
-    using namespace kls::essential;
     using namespace kls::coroutine;
     EXPECT_ANY_THROW(run_blocking([&]() -> ValueAsync<void> { throw std::runtime_error(""); }));
 }
 
 TEST(kls_coroutine, TrivialBlockingSuccess) {
-    using namespace kls::essential;
     using namespace kls::coroutine;
     EXPECT_EQ(run_blocking([&]() -> ValueAsync<int> { co_return 42; }), 42);
 }
 
 TEST(kls_coroutine, TrivialBlockingFailure) {
-    using namespace kls::essential;
     using namespace kls::coroutine;
     EXPECT_ANY_THROW(run_blocking([&]() -> ValueAsync<int> { throw std::runtime_error(""); }));
 }
 
 TEST(kls_coroutine, NonTrivialBlockingSuccess) {
-    using namespace kls::essential;
     using namespace kls::coroutine;
     EXPECT_EQ(run_blocking([&]() -> ValueAsync<std::string> { co_return "TEST"; }), std::string("TEST"));
 }
 
 TEST(kls_coroutine, NonTrivialBlockingFailure) {
-    using namespace kls::essential;
     using namespace kls::coroutine;
     EXPECT_ANY_THROW(run_blocking([&]() -> ValueAsync<std::string> { throw std::runtime_error(""); }));
 }

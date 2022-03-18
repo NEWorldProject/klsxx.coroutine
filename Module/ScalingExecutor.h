@@ -25,7 +25,7 @@
 #include "QueueDrain.h"
 #include "Executor.hpp"
 #include "kls/thread/Semaphore.h"
-#include "kls/coroutine/Coroutine.h"
+#include "kls/coroutine/Operation.h"
 
 namespace kls::coroutine::detail {
     template<template<class> class Queue>

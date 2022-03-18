@@ -22,56 +22,29 @@
 
 #pragma once
 
-#include <bit>
-#include <atomic>
 #include <chrono>
-#include <coroutine>
-
-namespace kls::coroutine::detail {
-    class Timed;
-}
+#include "Trigger.h"
 
 namespace kls::coroutine {
-    struct DelayAwait {
+    struct DelayAwait: private SingleExecutorTrigger, private ExecutorAwaitEntry {
         template<class Fn>
-        requires requires(DelayAwait &t, Fn f) { f(&t); }
+        requires requires(SingleExecutorTrigger &t, Fn f) { f(&t); }
         explicit DelayAwait(Fn fn) { fn(this); }
-
-        DelayAwait(DelayAwait &&) = delete;
-
-        DelayAwait(const DelayAwait &) = delete;
-
-        DelayAwait &operator=(DelayAwait &&) = delete;
-
-        DelayAwait &operator=(const DelayAwait &) = delete;
 
         [[nodiscard]] constexpr bool await_ready() const noexcept { return false; }
 
         bool await_suspend(std::coroutine_handle<> h) {
-            const auto address = h.address();
-            for (;;) {
-                auto val = m_handle.load();
-                if (val == INVALID_PTR) return false;
-                if (m_handle.compare_exchange_weak(val, address)) return true;
-            }
+            ExecutorAwaitEntry::set_handle(h);
+            return SingleExecutorTrigger::trap(*this);
         }
 
         constexpr void await_resume() const noexcept {}
-    private:
-        inline static void *INVALID_PTR = std::bit_cast<void *>(~uintptr_t(0));
-        std::atomic<void *> m_handle{nullptr};
-
-        void release() {
-            if (auto ths = m_handle.exchange(INVALID_PTR); ths) std::coroutine_handle<>::from_address(ths).resume();
-        }
-
-        friend class detail::Timed;
     };
 
     DelayAwait delay_until(std::chrono::steady_clock::time_point tp);
 
     template<class Rep, class Period>
     DelayAwait wait_for(const std::chrono::duration<Rep, Period>& rel) {
-        return delay_until(std::chrono::steady_clock::now() +  rel);
+        return delay_until(std::chrono::steady_clock::now() + rel);
     }
 }

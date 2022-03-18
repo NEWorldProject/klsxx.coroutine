@@ -32,7 +32,7 @@ using Time = Clock::time_point;
 namespace kls::coroutine::detail {
     struct Unit {
         Time time;
-        DelayAwait *await;
+        SingleExecutorTrigger *await;
 
         auto operator<=>(const Unit &r) const noexcept { return time <=> r.time; }
     };
@@ -82,7 +82,7 @@ namespace kls::coroutine::detail {
                     const auto now = Clock::now();
                     if (const auto top = m_queue.top(); now >= top.time) {
                         m_queue.pop();
-                        top.await->release();
+                        top.await->pull();
                     } else {
                         lk.unlock();
                         m_signal.wait_until(top.time);
@@ -95,6 +95,6 @@ namespace kls::coroutine::detail {
 
 namespace kls::coroutine {
     DelayAwait delay_until(std::chrono::steady_clock::time_point tp) {
-        return DelayAwait{[tp](DelayAwait *ths) { detail::Timed::get().add({tp, ths}); }};
+        return DelayAwait{[tp](SingleExecutorTrigger *ths) { detail::Timed::get().add({tp, ths}); }};
     }
 }

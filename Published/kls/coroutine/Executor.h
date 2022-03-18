@@ -24,11 +24,12 @@
 
 #include <memory>
 #include <coroutine>
+#include "kls/Object.h"
 
 namespace kls::coroutine {
     class IExecutor {
     public:
-        void Enqueue(std::coroutine_handle<> handle) noexcept { (*this.*EnqueueRaw)(handle.address()); }
+        void enqueue(std::coroutine_handle<> handle) noexcept { (*this.*EnqueueRaw)(handle.address()); }
 
     protected:
         using FnEnqueue = void (IExecutor::*)(void* coroutine) noexcept;
@@ -39,11 +40,21 @@ namespace kls::coroutine {
         FnEnqueue EnqueueRaw;
     };
 
-    IExecutor* CurrentExecutor() noexcept;
+    IExecutor* this_executor() noexcept;
 
     std::shared_ptr<IExecutor> CreateSingleThreadExecutor();
 
     std::shared_ptr<IExecutor> CreateScalingFIFOExecutor(int min, int max, int linger);
 
     std::shared_ptr<IExecutor> CreateScalingBagExecutor(int min, int max, int linger);
+
+    class ManualDrainExecutor: public AddressSensitive {
+    public:
+        ManualDrainExecutor();
+        ~ManualDrainExecutor();
+        void drain_once();
+    private:
+        class Executor;
+        Executor* mTheExec;
+    };
 }

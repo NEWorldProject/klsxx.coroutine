@@ -24,7 +24,7 @@
 #include "FifoQueue.h"
 #include "Executor.hpp"
 #include "kls/thread/Semaphore.h"
-#include "kls/coroutine/Coroutine.h"
+#include "kls/coroutine/Operation.h"
 
 namespace kls::coroutine {
     std::shared_ptr<IExecutor> CreateSingleThreadExecutor() {

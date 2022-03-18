@@ -85,7 +85,7 @@ namespace kls::coroutine::detail {
 
     Blocking::~Blocking() { delete mTheExec; }
 
-    void Blocking::Start() { mTheExec->Start(); }
+    void Blocking::start() { mTheExec->Start(); }
 
-    void Blocking::Stop() { mTheExec->Stop(); }
+    void Blocking::stop() { mTheExec->Stop(); }
 }
