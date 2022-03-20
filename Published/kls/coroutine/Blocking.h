@@ -59,10 +59,10 @@ namespace kls::coroutine {
             ValueAsync<void> launch(const Fn &fn) noexcept {
                 try {
                     if constexpr(!std::is_same_v<void, return_type>) {
-                        m_storage.template set(co_await fn());
+                        m_storage.set(co_await fn());
                     } else {
                         co_await fn();
-                        m_storage.template set();
+                        m_storage.set();
                     }
                 }
                 catch (...) {

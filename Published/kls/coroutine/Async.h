@@ -25,39 +25,9 @@
 #include <exception>
 #include "Trigger.h"
 #include "Executor.h"
+#include "ValueStore.h"
 
 namespace kls::coroutine {
-    template<class T>
-    class ValueStore;
-
-    template<>
-    class ValueStore<void> {
-    public:
-        void set() {}
-        void fail(std::exception_ptr e) { m_fail = std::move(e); }
-        void get() { if (m_fail) std::rethrow_exception(m_fail); }
-        void ref() { get(); }
-        void copy() { get(); }
-    private:
-        std::exception_ptr m_fail{nullptr}; //NOLINT
-    };
-
-    template<class T>
-    class ValueStore {
-    public:
-        ValueStore() noexcept = default;
-        ~ValueStore() { if (!m_fail) std::destroy_at(&m_store.value); }
-        void fail(std::exception_ptr e) { m_fail = std::move(e); }
-        template<class ...U> requires requires(U ...v) { sizeof...(v) == 1; }
-        void set(U &&... v) { std::construct_at(&m_store.value, std::forward<U>(v)...); }
-        T&& get() { if (m_fail) std::rethrow_exception(m_fail); else return std::move(m_store.value); }
-        T& ref() { if (m_fail) std::rethrow_exception(m_fail); else return m_store.value; }
-        T copy() { if (m_fail) std::rethrow_exception(m_fail); else return m_store.value; }
-    private:
-        std::exception_ptr m_fail{nullptr}; //NOLINT
-        Storage<T> m_store;
-    };
-
     template<class T, class ContControl>
     class ContinuableValueMedia : public ContControl {
     public:
@@ -230,6 +200,7 @@ namespace kls::coroutine {
         auto operator co_await() { return MyAwait(m_state); }
         auto configure(IExecutor* next) { return MyAwait(m_state, next); }
     private:
+#include "kls/Object.h"
         State m_state;
 
         template<class Fn> requires requires(StateHandle h, Fn fn) { fn(h); }
