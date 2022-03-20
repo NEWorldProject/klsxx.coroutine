@@ -23,6 +23,7 @@
 #pragma once
 
 #include "Async.h"
+#include "Traits.h"
 
 namespace kls::coroutine {
     class SwitchTo {
@@ -45,6 +46,24 @@ namespace kls::coroutine {
 
         constexpr void await_resume() noexcept {}
     };
+
+    template <class U, class Fn> requires requires(U o) {
+        { o.operator *() };
+        { o.operator ->() };
+        { o->close() };
+        std::is_nothrow_move_constructible_v<U>;
+    }
+    ValueAsync<awaitable_result_t<std::invoke_result_t<Fn, decltype(*std::declval<U>())>>> uses(U& obj, Fn fn) {
+        try {
+            auto ret = co_await fn(*obj);
+            co_await obj->close();
+            co_return ret;
+        }
+        catch (...) {
+            obj->close();
+            throw;
+        }
+    }
 
     template <class ...U>
     ValueAsync<void> awaits(U&&... c) { (..., co_await std::move(c)); }
