@@ -61,14 +61,15 @@ namespace kls::coroutine {
         Trigger m_trigger;
     };
 
-    template <class T, class Ext = void>
+    template <class T = void, class Ext = void>
     class FlexFuture: public AddressSensitive {
     public:
-        using PromiseType = std::shared_ptr<FuturePromise<T, FifoExecutorTrigger, Ext>>;
+        using PromiseType = FuturePromise<T, FifoExecutorTrigger, Ext>;
+        using PromiseHandle = std::shared_ptr<FuturePromise<T, FifoExecutorTrigger, Ext>>;
 
         template<class Fn>
-        requires requires(PromiseType t, Fn f) { f(t); }
-        explicit FlexFuture(Fn fn) { fn(PromiseType(m_promise)); }
+        requires requires(PromiseHandle t, Fn f) { f(t); }
+        explicit FlexFuture(Fn fn) { fn(PromiseHandle(m_promise)); }
 
         [[nodiscard]] constexpr bool await_ready() const noexcept { return false; }
 
@@ -80,19 +81,20 @@ namespace kls::coroutine {
 
         FlexFuture clone() const noexcept { return FlexFuture(m_promise); }
     private:
-        explicit FlexFuture(const PromiseType & o) noexcept: m_entry{}, m_promise(o) {}
+        explicit FlexFuture(const PromiseHandle & o) noexcept: m_entry{}, m_promise(o) {}
 
         FifoExecutorAwaitEntry m_entry {};
-        PromiseType m_promise {};
+        PromiseHandle m_promise = std::make_shared<PromiseType>();
     };
 
-    template <class T, class Ext = void>
+    template <class T = void, class Ext = void>
     class ValueFuture: public AddressSensitive {
     public:
         using PromiseType = FuturePromise<T, SingleExecutorTrigger, Ext>;
+        using PromiseHandle = FuturePromise<T, SingleExecutorTrigger, Ext>*;
 
         template<class Fn>
-        requires requires(PromiseType* t, Fn f) { f(t); }
+        requires requires(PromiseHandle t, Fn f) { f(t); }
         explicit ValueFuture(Fn fn) { fn(&m_promise); }
 
         [[nodiscard]] constexpr bool await_ready() const noexcept { return false; }
@@ -107,14 +109,15 @@ namespace kls::coroutine {
         PromiseType m_promise {};
     };
 
-    template <class T, class Ext = void>
+    template <class T = void, class Ext = void>
     class LazyFuture: public AddressSensitive {
     public:
         using PromiseType = FuturePromise<T, SingleExecutorTrigger, Ext>;
+        using PromiseHandle = FuturePromise<T, SingleExecutorTrigger, Ext>*;
 
         template<class Fn>
-        requires requires(PromiseType &t, Fn f) { f(&t); }
-        explicit LazyFuture(Fn fn) { fn(m_promise); }
+        requires requires(PromiseHandle t, Fn f) { f(t); }
+        explicit LazyFuture(Fn fn) { fn(&m_promise); }
 
         [[nodiscard]] constexpr bool await_ready() const noexcept { return false; }
 
