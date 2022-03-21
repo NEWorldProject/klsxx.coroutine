@@ -34,7 +34,7 @@ namespace kls::coroutine {
     public:
         template<class ...U>
         void set(U &&... v) { (m_storage.set(std::forward<U>(v)...), m_trigger.pull()); }
-        void fail() { (m_storage.fail(std::current_exception()), m_trigger.pull()); }
+        void fail(std::exception_ptr e = std::current_exception()) { (m_storage.fail(e), m_trigger.pull()); }
         T get() { return m_storage.get(); }
         decltype(auto) ref() { return m_storage.ref(); }
         decltype(auto) copy() { return m_storage.copy(); }
@@ -49,7 +49,7 @@ namespace kls::coroutine {
     public:
         template<class ...U>
         void set(U &&... v) { (m_storage.set(std::forward<U>(v)...), m_trigger.pull()); }
-        void fail() { (m_storage.fail(std::current_exception()), m_trigger.pull()); }
+        void fail(std::exception_ptr e = std::current_exception()) { (m_storage.fail(e), m_trigger.pull()); }
         T get() { return m_storage.get(); }
         decltype(auto) ref() { return m_storage.ref(); }
         decltype(auto) copy() { return m_storage.copy(); }
@@ -64,16 +64,16 @@ namespace kls::coroutine {
     template <class T, class Ext = void>
     class FlexFuture: public AddressSensitive {
     public:
-        using PromiseType = FuturePromise<T, FifoExecutorTrigger, Ext>;
+        using PromiseType = std::shared_ptr<FuturePromise<T, FifoExecutorTrigger, Ext>>;
 
         template<class Fn>
-        requires requires(std::shared_ptr<PromiseType> t, Fn f) { f(&t); }
-        explicit FlexFuture(Fn fn) { fn(std::shared_ptr<PromiseType>(m_promise)); }
+        requires requires(PromiseType t, Fn f) { f(t); }
+        explicit FlexFuture(Fn fn) { fn(PromiseType(m_promise)); }
 
         [[nodiscard]] constexpr bool await_ready() const noexcept { return false; }
 
         bool await_suspend(std::coroutine_handle<> h) {
-            return (m_entry.set_handle(h), m_promise->trigger().trap(*this));
+            return (m_entry.set_handle(h), m_promise->trigger().trap(m_entry));
         }
 
         T await_resume() noexcept { return m_promise->copy(); }
@@ -83,7 +83,7 @@ namespace kls::coroutine {
         explicit FlexFuture(const PromiseType & o) noexcept: m_entry{}, m_promise(o) {}
 
         FifoExecutorAwaitEntry m_entry {};
-        std::shared_ptr<PromiseType> m_promise {};
+        PromiseType m_promise {};
     };
 
     template <class T, class Ext = void>
@@ -92,13 +92,13 @@ namespace kls::coroutine {
         using PromiseType = FuturePromise<T, SingleExecutorTrigger, Ext>;
 
         template<class Fn>
-        requires requires(PromiseType &t, Fn f) { f(&t); }
-        explicit ValueFuture(Fn fn) { fn(m_promise); }
+        requires requires(PromiseType* t, Fn f) { f(t); }
+        explicit ValueFuture(Fn fn) { fn(&m_promise); }
 
         [[nodiscard]] constexpr bool await_ready() const noexcept { return false; }
 
         bool await_suspend(std::coroutine_handle<> h) {
-            return (m_entry.set_handle(h), m_promise.trigger().trap(*this));
+            return (m_entry.set_handle(h), m_promise.trigger().trap(m_entry));
         }
 
         T await_resume() noexcept { return m_promise.get(); }
@@ -119,7 +119,7 @@ namespace kls::coroutine {
         [[nodiscard]] constexpr bool await_ready() const noexcept { return false; }
 
         bool await_suspend(std::coroutine_handle<> h) {
-            return (m_entry.set_handle(h), m_promise.trigger().trap(*this));
+            return (m_entry.set_handle(h), m_promise.trigger().trap(m_entry));
         }
 
         decltype(auto) await_resume() noexcept { return m_promise.ref(); }

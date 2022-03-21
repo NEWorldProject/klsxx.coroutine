@@ -28,7 +28,7 @@
 namespace kls::coroutine {
     class SwitchTo {
     public:
-        explicit SwitchTo(IExecutor* next) noexcept : mNext(next) {}
+        explicit SwitchTo(IExecutor *next) noexcept: mNext(next) {}
 
         [[nodiscard]] constexpr bool await_ready() const noexcept { return false; }
 
@@ -36,7 +36,7 @@ namespace kls::coroutine {
 
         constexpr void await_resume() noexcept {}
     private:
-        IExecutor* mNext;
+        IExecutor *mNext;
     };
 
     struct Redispatch {
@@ -47,17 +47,27 @@ namespace kls::coroutine {
         constexpr void await_resume() noexcept {}
     };
 
-    template <class U, class Fn> requires requires(U o) {
-        { o.operator *() };
-        { o.operator ->() };
+    template<class U, class Fn>
+    requires requires(U o) {
+        { o.operator*() };
+        { o.operator->() };
         { o->close() };
         std::is_nothrow_move_constructible_v<U>;
     }
-    ValueAsync<awaitable_result_t<std::invoke_result_t<Fn, decltype(*std::declval<U>())>>> uses(U& obj, Fn fn) {
+    ValueAsync <awaitable_result_t<std::invoke_result_t<Fn, decltype(*std::declval<U>())>>> uses(U &obj, Fn fn) {
         try {
-            auto ret = co_await fn(*obj);
-            co_await obj->close();
-            co_return ret;
+            if constexpr(std::is_same_v<
+                    void,
+                    awaitable_result_t<std::invoke_result_t<Fn, decltype(*std::declval<U>())>>
+            >) {
+                co_await fn(*obj);
+                co_await obj->close();
+            }
+            else {
+                auto ret = co_await fn(*obj);
+                co_await obj->close();
+                co_return ret;
+            }
         }
         catch (...) {
             obj->close();
@@ -65,9 +75,9 @@ namespace kls::coroutine {
         }
     }
 
-    template <class ...U>
-    ValueAsync<void> awaits(U&&... c) { (..., co_await std::move(c)); }
+    template<class ...U>
+    ValueAsync<void> awaits(U &&... c) { (..., co_await std::move(c)); }
 
-    template <class Container>
-    ValueAsync<void> await_all(Container c) { for (auto&& x : c) co_await std::move(x); }
+    template<class Container>
+    ValueAsync<void> await_all(Container c) { for (auto &&x: c) co_await std::move(x); }
 }

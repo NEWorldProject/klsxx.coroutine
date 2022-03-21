@@ -93,7 +93,7 @@ namespace kls::coroutine::detail {
 }
 
 namespace kls::coroutine {
-    template<class T>
+    template<class T = void>
     class FlexAsync {
         using State = detail::FlexAsyncValueMedia<T>;
         using StateHandle = detail::FlexAsyncValueMediaHandle<T>;
@@ -170,7 +170,7 @@ namespace kls::coroutine::detail {
 }
 
 namespace kls::coroutine {
-    template<class T>
+    template<class T = void>
     class LazyAsync {
         using State = detail::LazyAsyncValueMedia<T>;
         using StateHandle = detail::LazyAsyncValueMediaHandle<T>;
@@ -244,7 +244,7 @@ namespace kls::coroutine::detail {
 }
 
 namespace kls::coroutine {
-    template<class T>
+    template<class T = void>
     class ValueAsync {
         using Media = detail::ValueAsyncValueMedia<T>;
         using PromiseMedia = detail::ValueAsyncPromiseValueMedia<T>;
