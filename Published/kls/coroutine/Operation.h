@@ -48,11 +48,36 @@ namespace kls::coroutine {
     };
 
     template<class U, class Fn>
+    requires requires(U& o) {
+        { o.close() };
+        std::is_nothrow_move_constructible_v<U>;
+    }
+    ValueAsync <awaitable_result_t<std::invoke_result_t<Fn, decltype(std::declval<U&>())>>> uses(U &obj, Fn fn) {
+        try {
+            if constexpr(std::is_same_v<
+                    void,
+                    awaitable_result_t<std::invoke_result_t<Fn, decltype(std::declval<U&>())>>
+            >) {
+                co_await fn(obj);
+                co_await obj.close();
+            }
+            else {
+                auto ret = co_await fn(obj);
+                co_await obj.close();
+                co_return ret;
+            }
+        }
+        catch (...) {
+            obj.close();
+            throw;
+        }
+    }
+
+    template<class U, class Fn>
     requires requires(U o) {
         { o.operator*() };
         { o.operator->() };
         { o->close() };
-        std::is_nothrow_move_constructible_v<U>;
     }
     ValueAsync <awaitable_result_t<std::invoke_result_t<Fn, decltype(*std::declval<U>())>>> uses(U &obj, Fn fn) {
         try {
