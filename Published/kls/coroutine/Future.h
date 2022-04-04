@@ -62,36 +62,40 @@ namespace kls::coroutine {
     };
 
     template <class T = void, class Ext = void>
-    class FlexFuture: public AddressSensitive {
+    class FlexFuture {
     public:
         using PromiseType = FuturePromise<T, FifoExecutorTrigger, Ext>;
-        using PromiseHandle = std::shared_ptr<FuturePromise<T, FifoExecutorTrigger, Ext>>;
+        using PromiseHandle = std::shared_ptr<PromiseType>;
+
+        class Await: public AddressSensitive {
+        public:
+            explicit Await(FlexFuture& flex) noexcept : m_promise(flex.m_promise) {}
+            explicit Await(FlexFuture&& flex) noexcept : m_promise(std::move(flex.m_promise)) {}
+            [[nodiscard]] constexpr bool await_ready() const noexcept { return false; }
+            T await_resume() noexcept { return m_promise->copy(); }
+            bool await_suspend(std::coroutine_handle<> h) {
+                return (m_entry.set_handle(h), m_promise->trigger().trap(m_entry));
+            }
+        private:
+            PromiseHandle m_promise;
+            FifoExecutorAwaitEntry m_entry {};
+        };
 
         template<class Fn>
         requires requires(PromiseHandle t, Fn f) { f(t); }
-        explicit FlexFuture(Fn fn) { fn(PromiseHandle(m_promise)); }
+        explicit FlexFuture(Fn fn): m_promise{std::make_shared<PromiseType>()} { fn(PromiseHandle(m_promise)); }
 
-        [[nodiscard]] constexpr bool await_ready() const noexcept { return false; }
-
-        bool await_suspend(std::coroutine_handle<> h) {
-            return (m_entry.set_handle(h), m_promise->trigger().trap(m_entry));
-        }
-
-        T await_resume() noexcept { return m_promise->copy(); }
-
-        FlexFuture clone() const noexcept { return FlexFuture(m_promise); }
+        Await operator co_await() & noexcept { return Await(*this); }
+        Await operator co_await() && noexcept { return Await(std::move(*this)); }
     private:
-        explicit FlexFuture(const PromiseHandle & o) noexcept: m_entry{}, m_promise(o) {}
-
-        FifoExecutorAwaitEntry m_entry {};
-        PromiseHandle m_promise = std::make_shared<PromiseType>();
+        PromiseHandle m_promise;
     };
 
     template <class T = void, class Ext = void>
     class ValueFuture: public AddressSensitive {
     public:
         using PromiseType = FuturePromise<T, SingleExecutorTrigger, Ext>;
-        using PromiseHandle = FuturePromise<T, SingleExecutorTrigger, Ext>*;
+        using PromiseHandle = PromiseType*;
 
         template<class Fn>
         requires requires(PromiseHandle t, Fn f) { f(t); }
@@ -113,7 +117,7 @@ namespace kls::coroutine {
     class LazyFuture: public AddressSensitive {
     public:
         using PromiseType = FuturePromise<T, SingleExecutorTrigger, Ext>;
-        using PromiseHandle = FuturePromise<T, SingleExecutorTrigger, Ext>*;
+        using PromiseHandle = PromiseType*;
 
         template<class Fn>
         requires requires(PromiseHandle t, Fn f) { f(t); }

@@ -98,6 +98,8 @@ namespace kls::coroutine {
 
     class FifoExecutorAwaitEntry: public ExecutorAwaitEntry {
     public:
+        using ExecutorAwaitEntry::ExecutorAwaitEntry;
+
         [[nodiscard]] auto get_next() const noexcept { return m_next; }
 
         auto set_next(FifoExecutorAwaitEntry* const next) noexcept { return m_next = next; }

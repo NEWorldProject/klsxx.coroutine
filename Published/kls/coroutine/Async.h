@@ -128,6 +128,7 @@ namespace kls::coroutine {
         auto operator co_await() const& { return MyAwait(m_state); }
         auto configure(IExecutor *next) &&{ return MyAwait(std::move(m_state), next); }
         auto configure(IExecutor *next) const &{ return MyAwait(m_state, next); }
+        operator bool() const noexcept { return m_state; } //NOLINT
     private:
         StateHandle m_state;
 
@@ -171,15 +172,15 @@ namespace kls::coroutine::detail {
 
 namespace kls::coroutine {
     template<class T = void>
-    class LazyAsync {
+    class LazyAsync: public AddressSensitive {
         using State = detail::LazyAsyncValueMedia<T>;
         using StateHandle = detail::LazyAsyncValueMediaHandle<T>;
         using PromiseMedia = detail::LazyAsyncPromiseValueMedia<T>;
 
-        class LazyAwaitCore : ExecutorAwaitEntry {
+        class LazyAwaitCore : FifoExecutorAwaitEntry {
         public:
             explicit LazyAwaitCore(StateHandle state) : m_state(state) {}
-            LazyAwaitCore(StateHandle state, IExecutor* next) noexcept : ExecutorAwaitEntry(next), m_state(state) {}
+            LazyAwaitCore(StateHandle state, IExecutor* next) noexcept : FifoExecutorAwaitEntry(next), m_state(state) {}
             bool trap(std::coroutine_handle<> h) { return (set_handle(h), m_state->trap(this)); }
             decltype(auto) get() { return m_state->ref(); }
         private:
@@ -193,14 +194,13 @@ namespace kls::coroutine {
             constexpr std::suspend_never initial_suspend() noexcept { return {}; }
             constexpr std::suspend_never final_suspend() noexcept { return {}; }
             LazyAsync get_return_object() noexcept {
-                return {[this](StateHandle s) noexcept { PromiseMedia::m_handle = s; }};
+                return LazyAsync{[this](StateHandle s) noexcept { PromiseMedia::m_handle = s; }};
             }
         };
 
-        auto operator co_await() { return MyAwait(m_state); }
-        auto configure(IExecutor* next) { return MyAwait(m_state, next); }
+        auto operator co_await() { return MyAwait(&m_state); }
+        auto configure(IExecutor* next) { return MyAwait(&m_state, next); }
     private:
-#include "kls/Object.h"
         State m_state;
 
         template<class Fn> requires requires(StateHandle h, Fn fn) { fn(h); }
@@ -276,6 +276,7 @@ namespace kls::coroutine {
         ~ValueAsync() noexcept { if (mMedia) { mMedia->drop_task(); } }
         auto operator co_await()&& { return MyAwait(std::exchange(mMedia, nullptr)); }
         auto configure(IExecutor* next)&& { return MyAwait(std::exchange(mMedia, nullptr), next); }
+        operator bool() const noexcept { return mMedia; } //NOLINT
     private:
         Media* mMedia{ nullptr };
 
