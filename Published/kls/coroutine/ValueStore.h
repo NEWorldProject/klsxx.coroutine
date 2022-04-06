@@ -27,10 +27,10 @@
 
 namespace kls::coroutine {
     template<class T>
-    class ValueStore;
+    class FutureStore;
 
     template<>
-    class ValueStore<void> {
+    class FutureStore<void> {
     public:
         void set() {}
         void fail(std::exception_ptr e) { m_fail = std::move(e); }
@@ -42,18 +42,50 @@ namespace kls::coroutine {
     };
 
     template<class T>
-    class ValueStore {
+    class FutureStore {
     public:
-        ValueStore() noexcept = default;
-        ~ValueStore() { if (!m_fail) std::destroy_at(&m_store.value); }
-        template<class ...U> requires requires(U ...v) { sizeof...(v) == 1; }
+        FutureStore() noexcept = default;
+        ~FutureStore() { if (!m_fail) std::destroy_at(&m_store.value); }
+        template<class ...U>
+        requires requires(U ...v) { sizeof...(v) == 1; }
         void set(U &&... v) { std::construct_at(&m_store.value, std::forward<U>(v)...); }
         void fail(std::exception_ptr e) { m_fail = std::move(e); }
-        T&& get() { if (m_fail) std::rethrow_exception(m_fail); else return std::move(m_store.value); }
-        T& ref() { if (m_fail) std::rethrow_exception(m_fail); else return m_store.value; }
+        T &&get() { if (m_fail) std::rethrow_exception(m_fail); else return std::move(m_store.value); }
+        T &ref() { if (m_fail) std::rethrow_exception(m_fail); else return m_store.value; }
         T copy() { if (m_fail) std::rethrow_exception(m_fail); else return m_store.value; }
     private:
         std::exception_ptr m_fail{nullptr}; //NOLINT
-        Storage<T> m_store;
+        Storage <T> m_store;
+    };
+
+
+    template<class T>
+    class ValueStore;
+
+    template<>
+    class ValueStore<void> {
+    public:
+        void set() {}
+        void get() {}
+        void ref() {}
+        void copy() {}
+        void reset() {}
+    };
+
+    template<class T>
+    class ValueStore {
+    public:
+        ValueStore() noexcept = default;
+        ~ValueStore() { if (m_set) std::destroy_at(&m_store.value); }
+        template<class ...U>
+        requires requires(U ...v) { sizeof...(v) == 1; }
+        void set(U &&... v) { m_set = true, std::construct_at(&m_store.value, std::forward<U>(v)...); }
+        T &&get() { return std::move(m_store.value); }
+        T &ref() { return m_store.value; }
+        T copy() { return m_store.value; }
+        void reset() { if (m_set) m_set = false, std::destroy_at(&m_store.value); }
+    private:
+        Storage <T> m_store;
+        bool m_set{false};
     };
 }

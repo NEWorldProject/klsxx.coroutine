@@ -40,7 +40,7 @@ namespace kls::coroutine {
         decltype(auto) copy() { return m_storage.copy(); }
         auto& trigger() noexcept { return m_trigger; }
     private:
-        ValueStore<T> m_storage;
+        FutureStore<T> m_storage;
         Trigger m_trigger;
     };
 
@@ -57,7 +57,7 @@ namespace kls::coroutine {
         auto& trigger() noexcept { return m_trigger; }
     private:
         Storage<Ext> m_extension;
-        ValueStore<T> m_storage;
+        FutureStore<T> m_storage;
         Trigger m_trigger;
     };
 

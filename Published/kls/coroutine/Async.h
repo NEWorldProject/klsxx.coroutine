@@ -40,7 +40,7 @@ namespace kls::coroutine {
         decltype(auto) ref() { return m_storage.ref(); }
         decltype(auto) copy() { return m_storage.copy(); }
     private:
-        ValueStore<T> m_storage;
+        FutureStore<T> m_storage;
     };
 
     // helper class for generating actual await client class.

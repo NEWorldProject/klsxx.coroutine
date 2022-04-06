@@ -100,8 +100,13 @@ namespace kls::coroutine {
         }
     }
 
+    namespace detail {
+        template<class ...U>
+        ValueAsync<void> awaits_impl(U... c) { (..., co_await std::move(c)); }
+    }
+
     template<class ...U>
-    ValueAsync<void> awaits(U &&... c) { (..., co_await std::move(c)); }
+    ValueAsync<void> awaits(U &&... c) { return detail::awaits_impl<std::decay_t<U>...>(std::forward<U>(c)...); }
 
     template<class Container>
     ValueAsync<void> await_all(Container c) { for (auto &&x: c) co_await std::move(x); }

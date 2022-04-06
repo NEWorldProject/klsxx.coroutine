@@ -23,13 +23,17 @@
 #pragma once
 
 #include <memory>
+#include <cassert>
 #include <coroutine>
 #include "kls/Object.h"
 
 namespace kls::coroutine {
     class IExecutor {
     public:
-        void enqueue(std::coroutine_handle<> handle) noexcept { (*this.*EnqueueRaw)(handle.address()); }
+        void enqueue(std::coroutine_handle<> handle) noexcept {
+            assert(handle);
+            (*this.*EnqueueRaw)(handle.address());
+        }
 
     protected:
         using FnEnqueue = void (IExecutor::*)(void* coroutine) noexcept;

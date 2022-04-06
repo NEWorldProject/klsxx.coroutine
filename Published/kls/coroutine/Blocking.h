@@ -54,7 +54,7 @@ namespace kls::coroutine {
                 return m_storage.get();
             }
         private:
-            ValueStore<return_type> m_storage;
+            FutureStore<return_type> m_storage;
 
             ValueAsync<void> launch(const Fn &fn) noexcept {
                 try {
