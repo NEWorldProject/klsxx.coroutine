@@ -24,6 +24,7 @@
 
 #include "Async.h"
 #include "Traits.h"
+#include "Blocking.h"
 
 namespace kls::coroutine {
     class SwitchTo {
@@ -48,27 +49,26 @@ namespace kls::coroutine {
     };
 
     template<class U, class Fn>
-    requires requires(U& o) {
+    requires requires(U &o) {
         { o.close() };
         std::is_nothrow_move_constructible_v<U>;
     }
-    ValueAsync <awaitable_result_t<std::invoke_result_t<Fn, decltype(std::declval<U&>())>>> uses(U &obj, Fn fn) {
+    ValueAsync<awaitable_result_t<std::invoke_result_t<Fn, decltype(std::declval<U &>())>>> uses(U &obj, Fn fn) {
         try {
             if constexpr(std::is_same_v<
                     void,
-                    awaitable_result_t<std::invoke_result_t<Fn, decltype(std::declval<U&>())>>
+                    awaitable_result_t<std::invoke_result_t<Fn, decltype(std::declval<U &>())>>
             >) {
                 co_await fn(obj);
                 co_await obj.close();
-            }
-            else {
+            } else {
                 auto ret = co_await fn(obj);
                 co_await obj.close();
                 co_return ret;
             }
         }
         catch (...) {
-            obj.close();
+            run_blocking([&]() -> ValueAsync<> { co_await obj.close(); });
             throw;
         }
     }
@@ -79,7 +79,7 @@ namespace kls::coroutine {
         { o.operator->() };
         { o->close() };
     }
-    ValueAsync <awaitable_result_t<std::invoke_result_t<Fn, decltype(*std::declval<U>())>>> uses(U &obj, Fn fn) {
+    ValueAsync<awaitable_result_t<std::invoke_result_t<Fn, decltype(*std::declval<U>())>>> uses(U &obj, Fn fn) {
         try {
             if constexpr(std::is_same_v<
                     void,
@@ -87,15 +87,14 @@ namespace kls::coroutine {
             >) {
                 co_await fn(*obj);
                 co_await obj->close();
-            }
-            else {
+            } else {
                 auto ret = co_await fn(*obj);
                 co_await obj->close();
                 co_return ret;
             }
         }
         catch (...) {
-            obj->close();
+            run_blocking([&]() -> ValueAsync<> { co_await obj->close(); });
             throw;
         }
     }
